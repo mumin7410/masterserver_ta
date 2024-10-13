@@ -1,0 +1,134 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: sony_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: django_db
+      MYSQL_USER: django_user
+      MYSQL_PASSWORD: django_password
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    volumes:
+      - ./db:/var/lib/mysql
+    networks:
+      - sony_network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    platform: linux/amd64
+    container_name: sony-phpmyadmin
+    links:
+      - db
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+      UPLOAD_LIMIT: 300M              # Set file upload limit
+      MEMORY_LIMIT: 256M              # Increase memory limit
+      MAX_EXECUTION_TIME: 300         # Increase execution time limit
+      MAX_INPUT_TIME: 300
+    restart: always
+    ports:
+      - 8081:80
+    depends_on:
+      - db
+    networks:
+      - sony_network
+
+  redis:
+    restart: always
+    image: redis:latest
+    container_name: sony-redis
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "2vBuMI9QeQ9tMGeG"]
+    ports:
+      - '6380:6379'
+    networks:
+      - sony_network
+    volumes:
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+  
+  nginx:
+    image: nginx:latest
+    container_name: sonynginx
+    ports:
+      - "81:80"  # Nginx will listen on port 80 and forward to Django
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./static:/app/static  # Ensure Django collects static files here
+      - ./media:/app/media
+    depends_on:
+      - web
+    networks:
+      - sony_network
+  
+  web:
+    build: .
+    container_name: sonymasterserver
+    command: >
+      /bin/sh -c "python manage.py collectstatic --noinput && python manage.py makemigrations && python manage.py migrate && python manage.py runserver 0.0.0.0:8001"
+    volumes:
+      - .:/app
+    ports:
+      - "8001:8001"
+    restart: always
+    depends_on:
+      - db
+    env_file:
+      - ./.django
+    networks:
+      - sony_network
+
+  # celery_test:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   command: celery -A masterserver worker -l info --concurrency=1 -Q test
+  #   volumes:
+  #     - .:/app
+  #   env_file:
+  #     - ./.django
+  #   depends_on:
+  #     - web
+  #   networks:
+  #     - sony_network
+
+  celery_produce_vector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A masterserver worker -l info --concurrency=1 -Q produce_vector
+    volumes:
+      - .:/app
+    env_file:
+      - ./.django
+    depends_on:
+      - web
+    networks:
+      - sony_network
+    
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile 
+    command: celery -A masterserver beat -l info --schedule /app/celerybeat/schedule
+    volumes:
+      - ./:/app
+    env_file:
+      - ./.django
+    depends_on:
+      - web
+      - redis
+      - db
+      - celery_produce_vector
+    networks:
+      - sony_network
+
+networks:
+  sony_network:
+    external: true
