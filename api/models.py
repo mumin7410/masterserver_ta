@@ -18,8 +18,19 @@ class employee_info(models.Model):
         return f'{self.emp_id}'
 
 class camera_location(models.Model):
+
+    STATUS_CHOICES = [
+        ('active', 'Active'),  # Example additional status
+        ('inactive', 'Inactive'),  # Example additional status
+    ]
+    
     id = models.AutoField(primary_key=True)
     location_name = models.CharField(max_length=100)
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default='inactive'  # Default value (can be adjusted)
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

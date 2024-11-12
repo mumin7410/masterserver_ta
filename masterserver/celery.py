@@ -19,10 +19,6 @@ app = Celery("masterserver")
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
 
-# @app.task(bind=True)
-# def test(self):
-#     print("Hello ,world testing by minstone 2222")
-
 @app.task(bind=True)
 def produce_vector(self):
     # Connect to Redis

@@ -83,20 +83,6 @@ services:
     networks:
       - sony_network
 
-  # celery_test:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   command: celery -A masterserver worker -l info --concurrency=1 -Q test
-  #   volumes:
-  #     - .:/app
-  #   env_file:
-  #     - ./.django
-  #   depends_on:
-  #     - web
-  #   networks:
-  #     - sony_network
-
   celery_produce_vector:
     build:
       context: .

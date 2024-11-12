@@ -12,6 +12,8 @@ class CameraLocationSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class TransactionSerializer(serializers.ModelSerializer):
+    employee_info = EmployeeInfoSerializer(read_only=True, source='emp_id')  # Assumes `emp_id` is the ForeignKey
+    camera_location = CameraLocationSerializer(read_only=True, source='location_id')
     class Meta:
         model = transaction
         fields = '__all__'
